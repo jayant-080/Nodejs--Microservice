@@ -1,0 +1,32 @@
+
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: order-service
+
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: "dev"
+  region: us-east-1
+
+functions:
+  createOrder:
+    handler: dist/index.createOrder
+    timeout: 30  # Increase timeout to 30 seconds
+    memorySize: 1024  # Allocate 1 GB of memory
+    events:
+      - httpApi:
+          path: order
+          method: post
+  
+  
+                    
+   
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    host: 0.0.0.0  # Listen on all network interfaces
+    httpPort: 3001      # Expose the service on port 3000

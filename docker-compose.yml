@@ -1,0 +1,104 @@
+version: '3.7'
+
+services:
+
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      - node-network
+
+  kafka:
+    image: wurstmeister/kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    expose:
+      - "9093"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+      - ./kafka/setup.sh:/usr/local/bin/setup.sh
+  
+    depends_on:
+      - zookeeper   
+    networks:
+      - node-network
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/microtwo-product-db
+      - KAFKA_BROKER=kafka:9092
+
+    depends_on:
+      - mongodb
+      - kafka     
+    networks:
+      - node-network
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/microtwo-order-db
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - node-network
+
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+    networks:
+      - node-network
+
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: microtwo-order-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./order-service/src/infrastructure/database:/var/lib/postgresql/data
+    networks:
+      - node-network
+
+   
+
+ 
+
+volumes:
+  mongo-data:
+  postgres-data:
+  kafka-data:
+
+networks:
+  node-network:
+    driver: bridge
